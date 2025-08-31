@@ -6,9 +6,65 @@ class DrawingBoard {
     this.currentColor = "#000000";
     this.currentLineWidth = 2;
 
+    // WebSocket connection
+    this.ws = null;
+    this.connectWebSocket();
+
     this.setupCanvas();
     this.setupEventListeners();
     this.setupTools();
+  }
+
+  connectWebSocket() {
+    this.ws = new WebSocket("ws://localhost:8080/ws");
+
+    this.ws.onopen = () => {
+      console.log("Connected to WebSocket server");
+    };
+
+    this.ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      this.handleWebSocketMessage(msg);
+    };
+
+    this.ws.onclose = () => {
+      console.log("Disconnected from WebSocket server");
+      // Try to reconnect after 3 seconds
+      setTimeout(() => this.connectWebSocket(), 3000);
+    };
+
+    this.ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+  }
+
+  handleWebSocketMessage(msg) {
+    // Handle incoming messages from other users
+    switch (msg.type) {
+      case "draw":
+        this.drawFromRemote(msg.data);
+        break;
+      case "clear":
+        this.clearCanvas();
+        break;
+    }
+  }
+
+  drawFromRemote(data) {
+    // Draw actions received from other users
+    this.ctx.strokeStyle = data.color;
+    this.ctx.lineWidth = data.lineWidth;
+    this.ctx.lineCap = "round";
+    this.ctx.lineJoin = "round";
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(data.startX, data.startY);
+    this.ctx.lineTo(data.endX, data.endY);
+    this.ctx.stroke();
+
+    // Reset to current user's settings
+    this.ctx.strokeStyle = this.currentColor;
+    this.ctx.lineWidth = this.currentLineWidth;
   }
 
   setupCanvas() {
@@ -119,6 +175,8 @@ class DrawingBoard {
   startDrawing(e) {
     this.isDrawing = true;
     const pos = this.getMousePos(e);
+    this.lastX = pos.x;
+    this.lastY = pos.y;
     this.ctx.beginPath();
     this.ctx.moveTo(pos.x, pos.y);
   }
@@ -127,8 +185,32 @@ class DrawingBoard {
     if (!this.isDrawing) return;
 
     const pos = this.getMousePos(e);
+
+    // Draw locally
     this.ctx.lineTo(pos.x, pos.y);
     this.ctx.stroke();
+
+    // Send drawing data to other users
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      const drawData = {
+        startX: this.lastX,
+        startY: this.lastY,
+        endX: pos.x,
+        endY: pos.y,
+        color: this.currentColor,
+        lineWidth: this.currentLineWidth,
+      };
+
+      this.ws.send(
+        JSON.stringify({
+          type: "draw",
+          data: drawData,
+        }),
+      );
+    }
+
+    this.lastX = pos.x;
+    this.lastY = pos.y;
   }
 
   stopDrawing() {
@@ -141,6 +223,16 @@ class DrawingBoard {
   clearCanvas() {
     this.ctx.fillStyle = "white";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Notify other users
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(
+        JSON.stringify({
+          type: "clear",
+          data: {},
+        }),
+      );
+    }
   }
 
   setColor(color) {
