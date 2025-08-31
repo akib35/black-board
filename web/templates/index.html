@@ -3,15 +3,27 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Black Board</title>
+        <title>Black Board - Multi-User Drawing</title>
         <link rel="stylesheet" href="/static/css/style.css" />
     </head>
     <body>
         <div class="container">
-            <h1>Black Board</h1>
-            <canvas id="drawingCanvas" width="800" height="600"></canvas>
+            <header>
+                <h1>Black Board</h1>
+                <p>Multi-User Drawing Tool</p>
+            </header>
+
+            <div class="canvas-container">
+                <canvas id="drawingCanvas"></canvas>
+            </div>
+
             <div class="tools">
                 <button id="clearBtn">Clear Canvas</button>
+                <button id="colorBlack">Black</button>
+                <button id="colorRed">Red</button>
+                <button id="colorBlue">Blue</button>
+                <button id="brushSmall">Small Brush</button>
+                <button id="brushLarge">Large Brush</button>
             </div>
         </div>
         <script src="/static/js/main.js"></script>
